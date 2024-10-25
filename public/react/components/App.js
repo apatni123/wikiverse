@@ -6,7 +6,7 @@ import apiURL from '../api';
 export const App = () => {
   const [pages, setPages] = useState([]);
   const [selectedPage, setSelectedPage] = useState(null);
-  const [isAddingArticle, setIsAddingArticle] = useState(false); // Set to false initially
+  const [isAddingArticle, setIsAddingArticle] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -16,15 +16,14 @@ export const App = () => {
   });
 
   useEffect(() => {
-    async function fetchPages() {
+    const fetchPages = async () => {
       try {
         const response = await fetch(`${apiURL}/wiki`);
-        const pagesData = await response.json();
-        setPages(pagesData);
+        setPages(await response.json());
       } catch (err) {
-        console.log('Oh no an error! ', err);
+        console.error('Error fetching pages:', err);
       }
-    }
+    };
 
     fetchPages();
   }, []);
@@ -32,49 +31,32 @@ export const App = () => {
   const fetchPage = async (slug) => {
     try {
       const response = await fetch(`${apiURL}/wiki/${slug}`);
-      const pageData = await response.json();
-      setSelectedPage(pageData);
+      setSelectedPage(await response.json());
     } catch (err) {
-      console.log('Error fetching page: ', err);
+      console.error('Error fetching page:', err);
     }
   };
 
   const handleBackToList = () => {
     setSelectedPage(null);
-    setIsAddingArticle(false); // Ensure form is hidden when going back to list
+    setIsAddingArticle(false);
   };
 
-  const handleAddArticle = () => {
-    setIsAddingArticle(true);
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const handleChange = ({ target: { name, value } }) => {
     setFormData((prevData) => ({ ...prevData, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent default form submission
-
-    const articleData = {
-      title: formData.title,
-      content: formData.content,
-      name: formData.name,
-      email: formData.email,
-      tags: formData.tags,
-    };
+    e.preventDefault();
 
     try {
       const response = await fetch(`${apiURL}/wiki`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(articleData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
       });
 
       if (response.ok) {
-        // Reset form data
         setFormData({
           title: '',
           content: '',
@@ -82,13 +64,13 @@ export const App = () => {
           email: '',
           tags: '',
         });
-        setIsAddingArticle(false); // Hide the form
-        fetchPages(); // Fetch updated list of pages
+        setIsAddingArticle(false);
+        await fetchPages();
       } else {
-        console.log('Error creating article:', response.statusText);
+        console.error('Error creating article:', response.statusText);
       }
     } catch (err) {
-      console.log('Error submitting form:', err);
+      console.error('Error submitting form:', err);
     }
   };
 
@@ -101,63 +83,29 @@ export const App = () => {
       ) : isAddingArticle ? (
         <form onSubmit={handleSubmit}>
           <h3>Add a New Article</h3>
-          <div>
-            <label>Title:</label>
-            <input
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div>
-            <label>Content:</label>
-            <textarea
-              name="content"
-              value={formData.content}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div>
-            <label>Author Name:</label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div>
-            <label>Author Email:</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div>
-            <label>Tags (space-separated):</label>
-            <input
-              type="text"
-              name="tags"
-              value={formData.tags}
-              onChange={handleChange}
-            />
-          </div>
+          {['title', 'content', 'name', 'email', 'tags'].map((field, idx) => (
+            <div key={idx}>
+              <label>{field.charAt(0).toUpperCase() + field.slice(1)}:</label>
+              {field === 'content' ? (
+                <textarea name={field} value={formData[field]} onChange={handleChange} required />
+              ) : (
+                <input
+                  type={field === 'email' ? 'email' : 'text'}
+                  name={field}
+                  value={formData[field]}
+                  onChange={handleChange}
+                  required={field !== 'tags'}
+                />
+              )}
+            </div>
+          ))}
           <button type="submit">Submit Article</button>
-          <button type="button" onClick={() => setIsAddingArticle(false)}>
-            Cancel
-          </button>
+          <button type="button" onClick={() => setIsAddingArticle(false)}>Cancel</button>
         </form>
       ) : (
         <>
           <PagesList pages={pages} onPageClick={fetchPage} />
-          <button onClick={handleAddArticle}>Add New Article</button>
+          <button onClick={() => setIsAddingArticle(true)}>Add New Article</button>
         </>
       )}
     </main>
